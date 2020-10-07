@@ -285,13 +285,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = WQ7VC4829H;
+				DEVELOPMENT_TEAM = 6KUGK3ASK5;
 				INFOPLIST_FILE = ScannerTestVision11/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.jiayee.koe.ScannerTestVision11;
+				PRODUCT_BUNDLE_IDENTIFIER = com.appsverse.ScannerTestVision11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -303,13 +303,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = WQ7VC4829H;
+				DEVELOPMENT_TEAM = 6KUGK3ASK5;
 				INFOPLIST_FILE = ScannerTestVision11/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.jiayee.koe.ScannerTestVision11;
+				PRODUCT_BUNDLE_IDENTIFIER = com.appsverse.ScannerTestVision11;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

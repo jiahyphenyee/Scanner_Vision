@@ -8,16 +8,18 @@
 
 import UIKit
 import AVFoundation
+import Vision
 
 class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDelegate {
     
     // MARK:- Private Vars
     
     private let captureSession = AVCaptureSession()
-    private var photoOutput = AVCapturePhotoOutput()
     private let videoDataOutput = AVCaptureVideoDataOutput()
     // preview the camera feed
     private lazy var previewLayer = AVCaptureVideoPreviewLayer(session: self.captureSession)
+    
+    private var bBoxLayer = CAShapeLayer()
     
     // MARK:- Private Functions
     
@@ -45,12 +47,48 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
         self.videoDataOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "camera_frame_processing_queue"))
         
         self.captureSession.addOutput(self.videoDataOutput)
-        self.captureSession.addOutput(self.photoOutput)
         
         guard let connection = self.videoDataOutput.connections.first ,
             connection.isVideoOrientationSupported else { return }
         connection.videoOrientation = .portrait
         
+    }
+    
+    private func detectRectangle(in image: CVPixelBuffer) {
+        let request = VNDetectRectanglesRequest(completionHandler: {
+            (request: VNRequest, error: Error?) in
+            
+            DispatchQueue.main.async {
+                guard let results = request.results as? [VNRectangleObservation] else { return }
+                self.removeBoundingBoxLayer()
+                
+                // get first observed rectangle
+                guard let rect = results.first else { return }
+                
+                // draw bounding box of detected rect
+                self.drawBoundingBox(rect: rect)
+            }
+        })
+        
+        // set value for detected rect
+        request.minimumAspectRatio = VNAspectRatio(0.3)
+        request.maximumAspectRatio = VNAspectRatio(0.9)
+        request.minimumSize = Float(0.3)
+        request.maximumObservations = 1
+        
+        // create Vision detection request
+        let imageRequestHandler = VNImageRequestHandler(cvPixelBuffer: image, options: [:])
+        try? imageRequestHandler.perform([request])
+    }
+    
+    private func createLayer(in rect: CGRect) {
+        bBoxLayer = CAShapeLayer()
+        bBoxLayer.frame = rect
+        bBoxLayer.cornerRadius = 10
+        bBoxLayer.opacity = 1
+        bBoxLayer.borderColor = UIColor.systemGreen.cgColor
+        bBoxLayer.borderWidth = 6.0
+        previewLayer.insertSublayer(bBoxLayer, at: 1)
     }
 
     // MARK:- Override Functions
@@ -85,9 +123,56 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
     // MARK:- Functions
     
     func captureOutput(_ output: AVCaptureOutput,didOutput sampleBuffer: CMSampleBuffer,from connection: AVCaptureConnection) {
-      // what we will do here ? 🤨
+        guard let frame = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+            debugPrint("unable to get image from sample buffer")
+            return
+        }
+        self.detectRectangle(in: frame)
     }
+    
+    func drawBoundingBox(rect: VNRectangleObservation) {
+        let transform = CGAffineTransform(scaleX: 1, y: -1)
+            .translatedBy(x: 0, y: -self.previewLayer.bounds.height)
+        let scale = CGAffineTransform.identity.scaledBy(
+            x: self.previewLayer.bounds.width, y: self.previewLayer.bounds.height)
+        let bounds = rect.boundingBox.applying(scale).applying(transform)
+        
+        createLayer(in: bounds)
+    }
+    
+    func removeBoundingBoxLayer() {
+      bBoxLayer.removeFromSuperlayer()
+    }
+    
+    // extract image within rectangle
+    func extractImage(_ observation: VNRectangleObservation, from buffer: CVImageBuffer) -> UIImage {
+        var ciImage = CIImage(cvImageBuffer: buffer)
 
-
+        // scale the CGPoints of the observed rectangle in order to center them in the ciImage
+        let topLeft = observation.topLeft.scaled(to: ciImage.extent.size)
+        let topRight = observation.topRight.scaled(to: ciImage.extent.size)
+        let bottomLeft = observation.bottomLeft.scaled(to: ciImage.extent.size)
+        let bottomRight = observation.bottomRight.scaled(to: ciImage.extent.size)
+        
+        // pass filters to rectify image
+        ciImage = ciImage.applyingFilter("CIPerspectiveCorrection",
+            parameters: [
+                "inputTopLeft": CIVector(cgPoint: topLeft),
+                "inputTopRight": CIVector(cgPoint: topRight),
+                "inputBottomLeft": CIVector(cgPoint: bottomLeft),
+                "inputBottomRight": CIVector(cgPoint: bottomRight),
+        ])
+        
+        let context = CIContext()
+        let cgImage = context.createCGImage(ciImage, from: ciImage.extent)
+        let output = UIImage(cgImage: cgImage!)
+        
+        return output
+    }
 }
 
+extension CGPoint {
+    func scaled(to size: CGSize) -> CGPoint {
+        return CGPoint(x: self.x * size.width, y: self.y * size.height)
+    }
+}
